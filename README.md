@@ -1,0 +1,1 @@
+# AutoClick66_Bot
