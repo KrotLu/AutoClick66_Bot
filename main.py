@@ -31,15 +31,11 @@ except Exception as e:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("FastAPI started")
-    # Устанавливаем вебхук при старте приложения
-    # Адрес вебхука — ваш сервер на Render + /webhook
-    # Можно задать явно, либо взять из переменной окружения RENDER_EXTERNAL_URL
     webhook_base = os.getenv("RENDER_EXTERNAL_URL", "https://autoclick66-bot.onrender.com")
     webhook_url = f"{webhook_base}/webhook"
-    await bot.set_webhook(webhook_url, timeout=30)
+    await bot.set_webhook(webhook_url)   # убрали timeout
     print(f"Webhook set to {webhook_url}")
     yield
-    # При остановке удаляем вебхук и закрываем сессию
     await bot.delete_webhook()
     await bot.session.close()
     print("FastAPI stopped")
