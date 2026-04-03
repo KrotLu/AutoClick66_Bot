@@ -47,7 +47,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+    
 @app.post("/webhook")
 async def webhook(request: Request):
     update = Update.model_validate(await request.json(), context={"bot": bot})
