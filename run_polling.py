@@ -11,6 +11,7 @@ if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN not set")
 
 async def main():
+    init_db()
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher()
     dp.include_router(user)
