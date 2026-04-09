@@ -185,8 +185,31 @@ async def q16_complete(callback: CallbackQuery, state: FSMContext):
 @user.message(CarSelection.dop)
 async def process_dop(message: Message, state: FSMContext):
     await state.update_data({"Дополнительные пожелания": message.text})
-    await message.answer("Отлично! Данные сохранены. Отправить заявку?", reply_markup=kb.send_request)
+    await message.answer("Отлично! Данные для заявки сохранены. Также рекомендуем добавить контакт для связи", reply_markup=kb.send_contact)
 
+@user.callback_query(F.data.startswith("cnt_"))
+async def request_contact(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    if callback.data == "cnt_contact":
+        await callback.message.answer(
+            "Пожалуйста, введите ваш номер телефона в формате:\n"
+            "• +7 123 456-78-90\n"
+            "• 8 123 456-78-90\n\n"
+            "Либо нажмите на кнопку: Отправить контакт", reply_markup=kb.contact)
+    else:
+        await state.set_state(CarSelection.send_request)
+    )
+    
+@user.message(CarSelection.contact, F)
+async def handle_contact(message: Message, state: FSMContext):
+    if F.contact:
+        phone = message.contact.phone_number
+        await update_user_data(phone, state, CarSelection.contact)
+        await message.answer("✅ Контакт сохранён.", reply_markup=ReplyKeyboardRemove())
+    elif F.text:
+        await update_user_data(message, state, CarSelection.contact)
+    # Переходим к финальному шагу — кнопке «Отправить заявку»
+    await message.answer("Отлично! Данные сохранены. Отправить заявку?", reply_markup=kb.send_request)
 
 # ========== УНИВЕРСАЛЬНАЯ ФУНКЦИЯ СОХРАНЕНИЯ ==========
 
