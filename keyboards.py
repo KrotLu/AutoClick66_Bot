@@ -144,7 +144,7 @@ q12_engine_builder.add(
   InlineKeyboardButton(text="3.5", callback_data="q12_3.5"),
   InlineKeyboardButton(text="Пропустить", callback_data="q12_Пропущено"),
   InlineKeyboardButton(text="🔄 Начать сначала", callback_data="clear"))
-q12_engine_builder.adjust(5, 5, 2, 1)
+q12_engine_builder.adjust(4, 5, 3, 1)
 q12_engine = q12_engine_builder.as_markup()
 
 
@@ -199,6 +199,15 @@ q16_complete_builder.add(
 )
 q16_complete_builder.adjust(2, 2, 1)
 q16_complete = q16_complete_builder.as_markup()
+
+q17_contact_builder = InlineKeyboardBuilder()
+q17_contact_builder.add(
+  InlineKeyboardButton(text="Добавить контакт", callback_data="q16_contact"),
+  InlineKeyboardButton(text="Пропустить", callback_data="q16_"),
+  InlineKeyboardButton(text="🔄 Начать сначала", callback_data="clear")
+)
+q17_contact_builder.adjust(2, 2, 1)
+q17_contact = q16_complete_builder.as_markup()
 
 send_request = InlineKeyboardMarkup(
   inline_keyboard=[
