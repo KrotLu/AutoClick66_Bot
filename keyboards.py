@@ -200,14 +200,16 @@ q16_complete_builder.add(
 q16_complete_builder.adjust(2, 2, 1)
 q16_complete = q16_complete_builder.as_markup()
 
-q17_contact_builder = InlineKeyboardBuilder()
-q17_contact_builder.add(
-  InlineKeyboardButton(text="Добавить контакт", callback_data="q16_contact"),
-  InlineKeyboardButton(text="Пропустить", callback_data="q16_"),
-  InlineKeyboardButton(text="🔄 Начать сначала", callback_data="clear")
+send_contact = InlineKeyboardMarkup(
+  inline_keyboard=[
+          InlineKeyboardButton(text="Добавить контакт", callback_data="cnt_contact"),
+          InlineKeyboardButton(text="Пропустить", callback_data="cnt_"),
+          InlineKeyboardButton(text="🔄 Начать сначала", callback_data="clear")
 )
-q17_contact_builder.adjust(2, 2, 1)
-q17_contact = q16_complete_builder.as_markup()
+
+contact = ReplyKeyboardMarkup(
+  keyboard=[ReplyKeyboardButton(text="Отправить контакт", request_contact=True)], resize_keyboard=True, one_time_keyboard=True
+)
 
 send_request = InlineKeyboardMarkup(
   inline_keyboard=[
@@ -216,7 +218,7 @@ send_request = InlineKeyboardMarkup(
 )
 
 admin_menu = InlineKeyboardMarkup(
-    inline_keyboard=[
+        inline_keyboard=[
         [InlineKeyboardButton(text="📋 Последние заявки", callback_data="admin_last_applications")],
         [InlineKeyboardButton(text="📥 Скачать все заявки (CSV)", callback_data="admin_export_csv")],
         [InlineKeyboardButton(text="🔄 Начать сначала", callback_data="clear")]
