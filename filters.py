@@ -37,6 +37,7 @@ class CarSelection(StatesGroup):
     color = State()  # 15. Цвет
     complete = State()  # 16.комплектация
     dop = State()  # 17 коммениарий
+    tel = State()  # телефон
 
 
 state_names = {
@@ -58,4 +59,5 @@ state_names = {
     CarSelection.color: "Цвет",
     CarSelection.complete: "Комплектация",
     CarSelection.dop: "Дополнительные пожелания",
+    CarSelection.tel: "Телефон",
 }
