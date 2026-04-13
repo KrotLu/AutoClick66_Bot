@@ -33,7 +33,7 @@ async def Car(callback: CallbackQuery, state: FSMContext):
             reply_markup=kb.q0_country_or_marc
         )
         await state.set_state(CarSelection.marc_or_country)
-    
+
 
 @user.callback_query(F.data.startswith("q0_"))
 async def q0_choice(callback: CallbackQuery, state: FSMContext):
@@ -96,12 +96,34 @@ async def process_budget(message: Message, state: FSMContext):
 @user.message(CarSelection.timing)
 async def process_timing(message: Message, state: FSMContext):
     await state.update_data({"Когда планируете покупку": message.text})
-    await message.answer(
-        "Основные ответы получены! Хотите отправить заявку на подбор автомобиля сейчас или выбрать дополнительные характеристики?",
-        reply_markup=kb.q7_dop_or_done
-    )
-    await state.set_state(CarSelection.contact)
+    await message.answer("Рекомендуем добавить контакт для связи", reply_markup=kb.send_contact)
+    await state.set_state(CarSelection.tel)
 
+@user.callback_query(F.data.startswith("cnt_"))
+async def request_contact(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    if callback.data == "cnt_contact":
+        await callback.message.answer(
+            "Пожалуйста, введите ваш номер телефона\n"
+            "Либо нажмите на кнопку: Отправить контакт", reply_markup=kb.contact)
+    else:
+        await callback.message.answer("Основные ответы получены! Хотите отправить заявку на подбор автомобиля сейчас или выбрать дополнительные характеристики?", reply_markup=kb.q7_dop_or_done)
+
+
+@user.message(F.contact)
+async def handle_contact(message: Message, state: FSMContext): 
+    current_state = await state.get_state()
+    if current_state == CarSelection.tel.state:
+        phone = message.contact.phone_number
+        await state.update_data({"Телефон": phone})
+        await message.answer("✅ Контакт сохранён.", reply_markup=None)
+        # Переходим к финальному шагу — кнопке «Отправить заявку»
+        await message.answer("Основные ответы получены! Хотите отправить заявку на подбор автомобиля сейчас или выбрать дополнительные характеристики?", reply_markup=kb.q7_dop_or_done)
+    else:
+        await message.answer(
+            "Подскажите, что вас интересует сейчас?",
+            reply_markup=kb.menu_start
+        )
 
 @user.callback_query(F.data == "q7_Дальше")
 async def q7_dop_or_done(callback: CallbackQuery, state: FSMContext):
@@ -182,34 +204,9 @@ async def q16_complete(callback: CallbackQuery, state: FSMContext):
         await state.set_state(CarSelection.dop)
 
 
-@user.message(CarSelection.dop)
-async def process_dop(message: Message, state: FSMContext):
-    await state.update_data({"Дополнительные пожелания": message.text})
-    await message.answer("Отлично! Данные для заявки сохранены. Также рекомендуем добавить контакт для связи", reply_markup=kb.send_contact)
 
-@user.callback_query(F.data.startswith("cnt_"))
-async def request_contact(callback: CallbackQuery, state: FSMContext):
-    await callback.answer()
-    if callback.data == "cnt_contact":
-        await callback.message.answer(
-            "Пожалуйста, введите ваш номер телефона в формате:\n"
-            "• +7 123 456-78-90\n"
-            "• 8 123 456-78-90\n\n"
-            "Либо нажмите на кнопку: Отправить контакт", reply_markup=kb.contact)
-    else:
-        await state.set_state(CarSelection.send_request)
-    )
-    
-@user.message(CarSelection.contact, F)
-async def handle_contact(message: Message, state: FSMContext):
-    if F.contact:
-        phone = message.contact.phone_number
-        await update_user_data(phone, state, CarSelection.contact)
-        await message.answer("✅ Контакт сохранён.", reply_markup=ReplyKeyboardRemove())
-    elif F.text:
-        await update_user_data(message, state, CarSelection.contact)
-    # Переходим к финальному шагу — кнопке «Отправить заявку»
-    await message.answer("Отлично! Данные сохранены. Отправить заявку?", reply_markup=kb.send_request)
+
+
 
 # ========== УНИВЕРСАЛЬНАЯ ФУНКЦИЯ СОХРАНЕНИЯ ==========
 
@@ -233,6 +230,8 @@ async def update_user_data(callback: CallbackQuery, state: FSMContext, current_s
     # Например: "q1_Japan" -> "Japan", "q2_Toyota" -> "Toyota"
     # "q4_механика" -> "механика", "q9_Седан" -> "Седан"
     value = callback.data.split("_", 1)[1] if "_" in callback.data else callback.data
+
+    
 
     # Получаем русское название поля из state_names
     field_name = state_names.get(current_state.state, current_state.state)
@@ -293,10 +292,14 @@ async def handle_text(message: Message, state: FSMContext):
             await state.set_state(CarSelection.timing)
         elif current_state == CarSelection.timing.state:
             await message.answer(
-                "Основные ответы получены! Хотите отправить заявку на подбор автомобиля сейчас или выбрать дополнительные характеристики?",
-                reply_markup=kb.q7_dop_or_done
+                "Рекомендуем добавить контакт для связи",
+                reply_markup=kb.contact
             )
-            await state.set_state(CarSelection.contact)
+            await state.set_state(CarSelection.tel)
+            
+        elif current_state == CarSelection.tel.state:
+            await message.answer("Основные ответы получены! Хотите отправить заявку на подбор автомобиля сейчас или выбрать дополнительные характеристики?", reply_markup=kb.q7_dop_or_done)
+            await state.set_state(CarSelection.dop_or_done)
         elif current_state == CarSelection.body_type.state:
             await message.answer("Выберите год выпуска", reply_markup=kb.q10_year)
             await state.set_state(CarSelection.year)
@@ -313,7 +316,9 @@ async def handle_text(message: Message, state: FSMContext):
             await message.answer("Выберите комплектацию", reply_markup=kb.q16_complete)
             await state.set_state(CarSelection.complete)
         elif current_state == CarSelection.dop.state:
-            await message.answer("Отлично! Данные сохранены. Отправить заявку?", reply_markup=kb.send_request)
+            await message.answer("Отлично! Данные для заявки сохранены. Отправить заявку?", reply_markup=kb.send_request)
+        
+        
     else:
         # Если нет активного состояния - показываем стартовое меню
         if message.text.lower() == "привет":
@@ -333,19 +338,19 @@ def generate_user_report(user_data: dict, user) -> str:
     Формирует краткий отчёт для пользователя (без username и ID)
     """
     report_lines = [
-        "📝 **Ваша заявка на подбор автомобиля**",
+        "📝 Ваша заявка на подбор автомобиля",
         "=" * 35,
         "",
-        "👤 **Клиент:**",
+        "👤 Клиент:",
         f"• Имя: {user.full_name}",
         "",
-        "🚗 **Параметры подбора:**",
+        "🚗 Параметры подбора:",
     ]
 
     # Проходим по всем сохранённым данным
     for field_name, value in user_data.items():
         if value and value != "—":
-            report_lines.append(f"• **{field_name}:** {value}")
+            report_lines.append(f"• {field_name}: {value}")
 
     report_lines.extend([
         "",
@@ -377,20 +382,20 @@ def generate_manager_report(user_data: dict, user) -> str:
     Формирует полный отчёт для менеджера (с username и ID)
     """
     report_lines = [
-        "📝 **Новая заявка на подбор автомобиля**",
+        "📝 Новая заявка на подбор автомобиля",
         "=" * 35,
         "",
-        "👤 **Информация о клиенте:**",
+        "👤 Информация о клиенте:",
         f"• Имя: {user.full_name}",
         f"• Username: @{user.username if user.username else 'не указан'}",
         f"• Telegram ID: {user.id}",
         "",
-        "🚗 **Параметры подбора:**",
+        "🚗 Параметры подбора:",
     ]
 
     for field_name, value in user_data.items():
         if value and value != "—":
-            report_lines.append(f"• **{field_name}:** {value}")
+            report_lines.append(f"• {field_name}: {value}")
 
     report_lines.extend([
         "",
@@ -416,7 +421,7 @@ async def done(callback: CallbackQuery, state: FSMContext):
 
     # Формируем отчёт для менеджера
     manager_report = generate_manager_report(user_data, callback.from_user)
-    manager_report = f"🆔 **ID заявки:** {app_id}\n\n{manager_report}"
+    manager_report = f"🆔 ID заявки: {app_id}\n\n{manager_report}"
 
     # Показываем краткий отчёт пользователю
     await callback.message.edit_text(
@@ -428,7 +433,7 @@ async def done(callback: CallbackQuery, state: FSMContext):
     await callback.bot.send_message(ADMINS[0], manager_report)
 
     await state.clear()
-    
+
 # ========== КНОПКА "ОЧИСТИТЬ" ==========
 
 @user.callback_query(F.data == "clear")
@@ -439,30 +444,6 @@ async def clear(callback: CallbackQuery, state: FSMContext):
         await callback.message.answer("Начинаем заново. Подскажите, что вас интересует сейчас?", reply_markup=kb.menu_start)
 
 
-# ========== АДМИН-КОМАНДЫ ==========
-
-@user.message(Command("admin"))
-async def admin_panel(message: Message):
-    """Панель администратора"""
-    if message.from_user.id not in ADMINS:
-        await message.answer("⛔ У вас нет доступа к этой команде.")
-        return
-
-    #count = get_applications_count()
-
-    await message.answer(
-        f"👑 **Панель администратора**\n\n"
-        f"📊 **Всего заявок:** \n\n"
-        f"**Доступные команды:**\n"
-        f"• `/last_applications` — последние 10 заявок (кратко)\n"
-        f"• `/last_applications 5` — последние N заявок\n"
-        f"• `/application 5` — подробная заявка по ID\n"
-        f"• `/export` — скачать все заявки в CSV\n\n"
-        f"Также можно использовать:\n"
-        f"• `/last_applications all` — все заявки (осторожно, много!)"
-    )
-        
-        
 
 
 # ========== HELP ==========
