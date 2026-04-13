@@ -18,7 +18,7 @@ q0_country_or_marc = InlineKeyboardMarkup(
     [InlineKeyboardButton(text="По марке", callback_data="q0_marc")],
     [InlineKeyboardButton(text="По стране", callback_data="q0_country")]]
 )
-  
+
 
 q1_country_builder = InlineKeyboardBuilder()
 q1_country_builder.add(
@@ -69,6 +69,19 @@ q4_type_kpp = q4_type_kpp_builder.as_markup()
 
 #на 5-6 вопрос пользователь отвечает вручную
 
+send_contact = InlineKeyboardMarkup(
+  inline_keyboard=[
+     [InlineKeyboardButton(text="Добавить контакт", callback_data="cnt_contact")],
+          [InlineKeyboardButton(text="Пропустить", callback_data="cnt_")],
+         [ InlineKeyboardButton(text="🔄 Начать сначала", callback_data="clear") ]]
+)
+
+contact = ReplyKeyboardMarkup(
+    keyboard=[[KeyboardButton(text="Отправить контакт", request_contact=True)]],
+    resize_keyboard=True,
+    one_time_keyboard=True
+)
+
 q7_dop_or_done = InlineKeyboardMarkup(
   inline_keyboard=[
     [InlineKeyboardButton(text="Отправить заявку", callback_data="Done")],
@@ -90,10 +103,10 @@ q9_body_type_builder.add(
   InlineKeyboardButton(text="Седан", callback_data="q9_Седан"),
   InlineKeyboardButton(text="Пикап", callback_data="q9_Пикап"),
   InlineKeyboardButton(text="Купе", callback_data="q9_Купе"),
-  
+
   InlineKeyboardButton(text="Универсал", callback_data="q9_Универсал"),
   InlineKeyboardButton(text="Минивэн", callback_data="q9_Минивэн"),
-  
+
   InlineKeyboardButton(text="Хетчбэк", callback_data="q9_Хетчбэк"),
   InlineKeyboardButton(text="Кроссовер", callback_data="q9_Кроссовер"),
 
@@ -176,13 +189,13 @@ q15_color_builder.add(
   InlineKeyboardButton(text="Черный", callback_data="q15_черный"),
   InlineKeyboardButton(text="Белый", callback_data="q15_белый"),
   InlineKeyboardButton(text="Красный", callback_data="q15_красный"),
-  
+
   InlineKeyboardButton(text="Серебристый", callback_data="q15_серебристый"),
   InlineKeyboardButton(text="Синий", callback_data="q15_синий"),
-  
+
   InlineKeyboardButton(text="Зеленый", callback_data="q15_зеленый"),
   InlineKeyboardButton(text="Коричневый", callback_data="q15_коричневый"),
- 
+
   InlineKeyboardButton(text="✏️ Свой вариант", callback_data="Свой вариант"),
   InlineKeyboardButton(text="🔄 Начать сначала", callback_data="clear")
 )
@@ -200,16 +213,7 @@ q16_complete_builder.add(
 q16_complete_builder.adjust(2, 2, 1)
 q16_complete = q16_complete_builder.as_markup()
 
-send_contact = InlineKeyboardMarkup(
-  inline_keyboard=[
-          InlineKeyboardButton(text="Добавить контакт", callback_data="cnt_contact"),
-          InlineKeyboardButton(text="Пропустить", callback_data="cnt_"),
-          InlineKeyboardButton(text="🔄 Начать сначала", callback_data="clear")
-)
 
-contact = ReplyKeyboardMarkup(
-  keyboard=[ReplyKeyboardButton(text="Отправить контакт", request_contact=True)], resize_keyboard=True, one_time_keyboard=True
-)
 
 send_request = InlineKeyboardMarkup(
   inline_keyboard=[
