@@ -25,7 +25,8 @@ class CarSelection(StatesGroup):
     type_kpp = State()  # 4. Тип КПП
     budget = State()  # 5. Бюджет
     timing = State()  # 6. Когда планируете покупку?
-    contact = State()  # 7. Отправить заявку\Дополнительные пожелания
+    tel = State()  # телефон
+    dop_or_done = State()  # 7. Отправить заявку\Дополнительные пожелания
 
     wheel_type = State()  # 8. Руль (левый, правый)
     body_type = State()  # 9. Тип кузова
@@ -37,7 +38,8 @@ class CarSelection(StatesGroup):
     color = State()  # 15. Цвет
     complete = State()  # 16.комплектация
     dop = State()  # 17 коммениарий
-    tel = State()  # телефон
+    
+    done = State()
 
 
 state_names = {
@@ -48,7 +50,7 @@ state_names = {
     CarSelection.type_kpp: "Тип КПП",
     CarSelection.budget: "Бюджет",
     CarSelection.timing: "Когда планируете покупку",
-    CarSelection.contact: "Контакт",
+    CarSelection.dop_or_done: "Дополнительные вопросы",
     CarSelection.wheel_type: "Руль",
     CarSelection.body_type: "Тип кузова",
     CarSelection.year: "Год выпуска",
