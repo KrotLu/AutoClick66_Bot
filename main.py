@@ -8,6 +8,12 @@ from aiogram.types import Update
 from dotenv import load_dotenv
 from handlers import user
 
+#Удаление старой базы данных (раскомментируйте при необходимости)
+db_path = Path(__file__).parent / "applications.db"
+if db_path.exists():
+    os.remove(db_path)
+    print("🗑️ Старая база данных удалена")
+
 # Перехват ошибок импорта для диагностики
 try:
     load_dotenv()
