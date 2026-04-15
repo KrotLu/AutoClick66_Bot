@@ -16,7 +16,8 @@ inline_keyboard=[
 q0_country_or_marc = InlineKeyboardMarkup(
   inline_keyboard=[
     [InlineKeyboardButton(text="По марке", callback_data="q0_marc")],
-    [InlineKeyboardButton(text="По стране", callback_data="q0_country")]]
+    [InlineKeyboardButton(text="По стране", callback_data="q0_country")]],
+  
 )
 
 
@@ -45,7 +46,8 @@ def q3_model_dinamic(marc):
   # динамическое создание кнопок для моделей в зависимости от выбранной марки
   q3_model_dinamic_builder = InlineKeyboardBuilder() 
   models_list = xl.car_menu.get_models(marc)
-  if len(models_list) > 9:
+  len_model = len(models_list)
+  if len_model > 9:
     models_list = models_list[:9]
   for m in models_list:
     q3_model_dinamic_builder.add(InlineKeyboardButton(text=m, callback_data=f"q3_{m}"))
@@ -53,7 +55,14 @@ def q3_model_dinamic(marc):
     InlineKeyboardButton(text="✏️ Свой вариант", callback_data="Свой вариант"),
     InlineKeyboardButton(text="🔄 Начать сначала", callback_data="clear")
   )
-  q3_model_dinamic_builder.adjust(3, 3, 3, 1, 1)
+  if len_model >= 7:
+    q3_model_dinamic_builder.adjust(3, 3, len_model%6, 1, 1)
+  elif len_model == 6:
+    q3_model_dinamic_builder.adjust(3, 3, 1, 1)
+  elif len_model >= 4:
+    q3_model_dinamic_builder.adjust(len_model-2, 2, 1, 1)
+  elif len_model < 4:
+    q3_model_dinamic_builder.adjust(len_model%3, 1, 1)
   return q3_model_dinamic_builder.as_markup()
 
 q4_type_kpp_builder = InlineKeyboardBuilder()
