@@ -38,7 +38,7 @@ class CarMenu:
             print(f"{marc}: {', '.join(models)}")
 
 # Использование
-car_menu = CarMenu('Bd_marc_model.xlsx')
+car_menu = CarMenu('Marc_model.xlsx')
 
 # Получить все марки
 #marc = car_menu.get_marc()
