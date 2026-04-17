@@ -4,7 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher
 from handlers import user
-from database import init_db   # добавьте импорт
+from database import init_db
 
 load_dotenv()
 
@@ -13,7 +13,7 @@ if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN not set")
 
 async def main():
-    # Удаляем старый файл БД, если он существует
+    # Удаляем старую базу данных перед созданием новой
     db_path = Path(__file__).parent / "applications.db"
     if db_path.exists():
         os.remove(db_path)
