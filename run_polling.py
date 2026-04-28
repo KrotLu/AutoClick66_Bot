@@ -1,10 +1,13 @@
 import asyncio
 import os
 from pathlib import Path
+from dotenv import load_dotenv   # <-- добавить
 from obabot import create_bot
 from handlers import user
 from database import init_db
 from keep_alive import keep_alive
+
+load_dotenv()                     # <-- добавить
 
 db_path = Path(__file__).parent / "applications.db"
 if db_path.exists():
@@ -13,8 +16,11 @@ if db_path.exists():
 
 init_db()
 
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-MAX_TOKEN = os.environ.get("MAX_BOT_TOKEN")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")  # лучше использовать .get() с проверкой
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN не задан в .env")
+
+MAX_TOKEN = os.environ.get("MAX_BOT_TOKEN")  # может быть None
 
 
 def _populate_pending_handlers(proxy_router, aiogram_router):
