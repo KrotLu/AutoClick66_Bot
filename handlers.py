@@ -10,7 +10,30 @@ from database import save_application
 from dotenv import load_dotenv
 import os
 
+import json
+from pathlib import Path
+
 ADMINS = [int(id_str) for id_str in os.environ.get('ADMINS', '').split(',') if id_str.strip()]
+ADMINS_MAX = [int(id_str) for id_str in os.environ.get('ADMINS_MAX', '').split(',') if id_str.strip()]
+
+# Файл для хранения MAX chat_id администраторов (user_id → chat_id)
+_MAX_CHAT_IDS_FILE = Path(__file__).parent / "max_admin_chats.json"
+
+def _load_max_chat_ids() -> dict:
+    if _MAX_CHAT_IDS_FILE.exists():
+        try:
+            return {int(k): int(v) for k, v in json.loads(_MAX_CHAT_IDS_FILE.read_text()).items()}
+        except Exception:
+            pass
+    return {}
+
+def _save_max_chat_ids(mapping: dict):
+    try:
+        _MAX_CHAT_IDS_FILE.write_text(json.dumps({str(k): v for k, v in mapping.items()}))
+    except Exception:
+        pass
+
+_max_admin_chat_ids: dict = _load_max_chat_ids()
 
 user = Router()
 
@@ -20,12 +43,14 @@ user = Router()
 async def start(message: Message, state: FSMContext):
     # Очищаем состояние при старте
     await state.clear()
+    # Запоминаем chat_id администратора в MAX при первом /start
+    _remember_max_admin_chat(message)
     await message.answer("Привет, это бот компании AutoClick, мы специализируемся на подборе и доставке автомобилей из Китая, Кореи и Японии. Что вас интересует сейчас?", reply_markup=kb.menu_start)
 
 
 @user.callback_query(F.data.startswith("Ca"))
 async def Car(callback: CallbackQuery, state: FSMContext):
-    if isinstance(callback.message, Message) and callback.data and callback.data != "clear":
+    if callback.message is not None and callback.data and callback.data != "clear":
         await update_user_data(callback, state, CarSelection.purpose)
         await callback.answer()
         await callback.message.edit_text(
@@ -54,7 +79,7 @@ async def q0_choice(callback: CallbackQuery, state: FSMContext):
 
 @user.callback_query(F.data.startswith("q1_"))
 async def q1_country(callback: CallbackQuery, state: FSMContext):
-    if isinstance(callback.message, Message) and callback.data and callback.data != "clear":
+    if callback.message is not None and callback.data and callback.data != "clear":
         await update_user_data(callback, state, CarSelection.country)
         await callback.message.answer("Теперь выберите марку автомобиля", reply_markup=kb.q2_marc)
         await state.set_state(CarSelection.marc)
@@ -62,7 +87,7 @@ async def q1_country(callback: CallbackQuery, state: FSMContext):
 
 @user.callback_query(F.data.startswith("q2_"))
 async def q2_marc(callback: CallbackQuery, state: FSMContext):
-    if isinstance(callback.message, Message) and callback.data and callback.data != "clear":
+    if callback.message is not None and callback.data and callback.data != "clear":
         await update_user_data(callback, state, CarSelection.marc)
         marc_name = callback.data.replace("q2_", "")
         models_keyboard = kb.q3_model_dinamic(marc_name)
@@ -72,7 +97,7 @@ async def q2_marc(callback: CallbackQuery, state: FSMContext):
 
 @user.callback_query(F.data.startswith("q3_"))
 async def q3_model(callback: CallbackQuery, state: FSMContext):
-    if isinstance(callback.message, Message) and callback.data and callback.data != "clear":
+    if callback.message is not None and callback.data and callback.data != "clear":
         await update_user_data(callback, state, CarSelection.model)
         await callback.message.answer("Выберите тип КПП", reply_markup=kb.q4_type_kpp)
         await state.set_state(CarSelection.type_kpp)
@@ -80,7 +105,7 @@ async def q3_model(callback: CallbackQuery, state: FSMContext):
 
 @user.callback_query(F.data.startswith("q4_"))
 async def q4_type_kpp(callback: CallbackQuery, state: FSMContext):
-    if isinstance(callback.message, Message) and callback.data and callback.data != "clear":
+    if callback.message is not None and callback.data and callback.data != "clear":
         await update_user_data(callback, state, CarSelection.type_kpp)
         await callback.message.answer("Введите бюджет (в рублях)", reply_markup=None)
         await state.set_state(CarSelection.budget)
@@ -103,9 +128,15 @@ async def process_timing(message: Message, state: FSMContext):
 async def request_contact(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     if callback.data == "cnt_contact":
-        await callback.message.answer(
-            "Пожалуйста, введите ваш номер телефона\n"
-            "Либо нажмите на кнопку: Отправить контакт", reply_markup=kb.contact)
+        is_max = type(callback).__name__ == 'MaxCallbackQuery'
+        if is_max:
+            # MAX не поддерживает ReplyKeyboardMarkup — просим написать номер текстом
+            await callback.message.answer(
+                "Пожалуйста, введите ваш номер телефона в ответном сообщении:")
+        else:
+            await callback.message.answer(
+                "Пожалуйста, введите ваш номер телефона\n"
+                "Либо нажмите на кнопку: Отправить контакт", reply_markup=kb.contact)
     else:
         await callback.message.answer("Основные ответы получены! Хотите отправить заявку на подбор автомобиля сейчас или выбрать дополнительные характеристики?", reply_markup=kb.q7_dop_or_done)
 
@@ -134,7 +165,7 @@ async def q7_dop_or_done(callback: CallbackQuery, state: FSMContext):
 
 @user.callback_query(F.data.startswith("q8_"))
 async def q8_wheel_type(callback: CallbackQuery, state: FSMContext):
-    if isinstance(callback.message, Message) and callback.data and callback.data != "clear":
+    if callback.message is not None and callback.data and callback.data != "clear":
         await update_user_data(callback, state, CarSelection.wheel_type)
         await callback.message.answer("Выберите тип кузова", reply_markup=kb.q9_body_type)
         await state.set_state(CarSelection.body_type)
@@ -142,7 +173,7 @@ async def q8_wheel_type(callback: CallbackQuery, state: FSMContext):
 
 @user.callback_query(F.data.startswith("q9_"))
 async def q9_body_type(callback: CallbackQuery, state: FSMContext):
-    if isinstance(callback.message, Message) and callback.data and callback.data != "clear":
+    if callback.message is not None and callback.data and callback.data != "clear":
         await update_user_data(callback, state, CarSelection.body_type)
         await callback.message.answer("Выберите год выпуска", reply_markup=kb.q10_year)
         await state.set_state(CarSelection.year)
@@ -150,7 +181,7 @@ async def q9_body_type(callback: CallbackQuery, state: FSMContext):
 
 @user.callback_query(F.data.startswith("q10_"))
 async def q10_year(callback: CallbackQuery, state: FSMContext):
-    if isinstance(callback.message, Message) and callback.data and callback.data != "clear":
+    if callback.message is not None and callback.data and callback.data != "clear":
         await update_user_data(callback, state, CarSelection.year)
         await callback.message.answer("Выберите вид топлива", reply_markup=kb.q11_fuel)
         await state.set_state(CarSelection.fuel)
@@ -158,7 +189,7 @@ async def q10_year(callback: CallbackQuery, state: FSMContext):
 
 @user.callback_query(F.data.startswith("q11_"))
 async def q11_fuel(callback: CallbackQuery, state: FSMContext):
-    if isinstance(callback.message, Message) and callback.data and callback.data != "clear":
+    if callback.message is not None and callback.data and callback.data != "clear":
         await update_user_data(callback, state, CarSelection.fuel)
         await callback.message.answer("Выберите объем двигателя", reply_markup=kb.q12_engine)
         await state.set_state(CarSelection.engine)
@@ -166,7 +197,7 @@ async def q11_fuel(callback: CallbackQuery, state: FSMContext):
 
 @user.callback_query(F.data.startswith("q12_"))
 async def q12_engine(callback: CallbackQuery, state: FSMContext):
-    if isinstance(callback.message, Message) and callback.data and callback.data != "clear":
+    if callback.message is not None and callback.data and callback.data != "clear":
         await update_user_data(callback, state, CarSelection.engine)
         await callback.message.answer("Выберите пробег", reply_markup=kb.q13_mileage)
         await state.set_state(CarSelection.mileage)
@@ -174,7 +205,7 @@ async def q12_engine(callback: CallbackQuery, state: FSMContext):
 
 @user.callback_query(F.data.startswith("q13_"))
 async def q13_mileage(callback: CallbackQuery, state: FSMContext):
-    if isinstance(callback.message, Message) and callback.data and callback.data != "clear":
+    if callback.message is not None and callback.data and callback.data != "clear":
         await update_user_data(callback, state, CarSelection.mileage)
         await callback.message.answer("Выберите тип привода", reply_markup=kb.q14_drive_type)
         await state.set_state(CarSelection.drive_type)
@@ -182,7 +213,7 @@ async def q13_mileage(callback: CallbackQuery, state: FSMContext):
 
 @user.callback_query(F.data.startswith("q14_"))
 async def q14_drive_type(callback: CallbackQuery, state: FSMContext):
-    if isinstance(callback.message, Message) and callback.data and callback.data != "clear":
+    if callback.message is not None and callback.data and callback.data != "clear":
         await update_user_data(callback, state, CarSelection.drive_type)
         await callback.message.answer("Выберите цвет", reply_markup=kb.q15_color)
         await state.set_state(CarSelection.color)
@@ -190,7 +221,7 @@ async def q14_drive_type(callback: CallbackQuery, state: FSMContext):
 
 @user.callback_query(F.data.startswith("q15_"))
 async def q15_color(callback: CallbackQuery, state: FSMContext):
-    if isinstance(callback.message, Message) and callback.data and callback.data != "clear":
+    if callback.message is not None and callback.data and callback.data != "clear":
         await update_user_data(callback, state, CarSelection.color)
         await callback.message.answer("Выберите комплектацию", reply_markup=kb.q16_complete)
         await state.set_state(CarSelection.complete)
@@ -198,7 +229,7 @@ async def q15_color(callback: CallbackQuery, state: FSMContext):
 
 @user.callback_query(F.data.startswith("q16_"))
 async def q16_complete(callback: CallbackQuery, state: FSMContext):
-    if isinstance(callback.message, Message) and callback.data and callback.data != "clear":
+    if callback.message is not None and callback.data and callback.data != "clear":
         await update_user_data(callback, state, CarSelection.complete)
         await callback.message.answer("Введите дополнительные пожелания", reply_markup=None)
         await state.set_state(CarSelection.dop)
@@ -241,7 +272,7 @@ async def update_user_data(callback: CallbackQuery, state: FSMContext, current_s
 
     await callback.answer(f"✅ Вы выбрали {value}")
 
-    if isinstance(callback.message, Message):
+    if callback.message is not None:
         try:
             await callback.message.edit_text(f"✅ {field_name}: {value}")
         except Exception:
@@ -259,6 +290,10 @@ async def user_version(callback: CallbackQuery, state: FSMContext):
 
     # Получаем русское название поля
     field_name = state_names.get(current_state, current_state)
+
+    if field_name is None:
+        await callback.answer("Нет активного состояния", show_alert=True)
+        return
 
     await callback.message.answer(f"Введите {field_name.lower()}:")
 
@@ -333,6 +368,10 @@ async def handle_text(message: Message, state: FSMContext):
 
 # ========== ФУНКЦИИ ДЛЯ ОТЧЁТОВ ==========
 
+    # from obabot import Router, F  # если используете router из obabot
+    # from obabot.fsm.context import FSMContext # если используете FSMContext из obabot
+
+
 def generate_user_report(user_data: dict, user) -> str:
     """
     Формирует краткий отчёт для пользователя (без username и ID)
@@ -347,7 +386,6 @@ def generate_user_report(user_data: dict, user) -> str:
         "🚗 Параметры подбора:",
     ]
 
-    # Проходим по всем сохранённым данным
     for field_name, value in user_data.items():
         if value and value != "—":
             report_lines.append(f"• {field_name}: {value}")
@@ -356,6 +394,63 @@ def generate_user_report(user_data: dict, user) -> str:
         "",
         "=" * 35,
         "✅ Менеджер свяжется с вами в ближайшее время!"
+    ])
+
+    return "\n".join(report_lines)
+
+def generate_manager_report(user_data: dict, user, platform: str = 'telegram') -> str:
+    """
+    Формирует полный отчёт для менеджера с HTML-ссылками на профиль пользователя.
+    platform: 'telegram' или 'max'
+    """
+    # --- Получаем полное имя пользователя (корректно для MAX и Telegram) ---
+    if hasattr(user, 'full_name') and user.full_name:
+        full_name = user.full_name
+    else:
+        first = getattr(user, 'first_name', '')
+        last = getattr(user, 'last_name', '')
+        full_name = f"{first} {last}".strip()
+        if not full_name:
+            full_name = "Пользователь"
+
+    # --- Формируем отчёт в зависимости от платформы ---
+    if platform == 'max':
+        # HTML-ссылка на профиль в MAX
+        user_link = f'<a href="max://user/{user.id}">{full_name}</a>'
+        report_lines = [
+            "📝 Новая заявка на подбор автомобиля",
+            "=" * 35,
+            "",
+            "👤 Информация о клиенте:",
+            f"• Имя: {user_link}",
+            "",
+            "🚗 Параметры подбора:",
+        ]
+    else:  # Telegram
+        # HTML-ссылка на профиль в Telegram (работает в мобильных приложениях)
+        user_link = f'<a href="tg://user?id={user.id}">{full_name}</a>'
+        username = f"@{user.username}" if user.username else "не указан"
+        report_lines = [
+            "📝 Новая заявка на подбор автомобиля",
+            "=" * 35,
+            "",
+            "👤 Информация о клиенте:",
+            f"• Имя: {user_link}",
+            f"• Username: {username}",
+            f"• Telegram ID: {user.id}",
+            "",
+            "🚗 Параметры подбора:",
+        ]
+
+    # --- Добавляем параметры подбора из user_data ---
+    for field_name, value in user_data.items():
+        if value and value != "—":
+            report_lines.append(f"• {field_name}: {value}")
+
+    report_lines.extend([
+        "",
+        "=" * 35,
+        "✅ Свяжитесь с клиентом в ближайшее время!"
     ])
 
     return "\n".join(report_lines)
@@ -377,61 +472,97 @@ def convert_db_row_to_user_data(row: dict) -> dict:
     return user_data
 
 
-def generate_manager_report(user_data: dict, user) -> str:
+
+
+
+
+def _remember_max_admin_chat(message):
+    """Запоминает chat_id MAX-администратора когда тот пишет боту."""
+    from_user = getattr(message, 'from_user', None)
+    if from_user is None:
+        return
+    user_id = getattr(from_user, 'id', None)
+    if user_id not in ADMINS_MAX:
+        return
+    # Получаем chat_id из message.chat.id (MaxChatAdapter) или _chat_id_for_send
+    chat = getattr(message, 'chat', None)
+    chat_id = getattr(chat, 'id', None) if chat else None
+    if chat_id is None and hasattr(message, '_chat_id_for_send'):
+        chat_id = message._chat_id_for_send()
+    if chat_id and _max_admin_chat_ids.get(user_id) != chat_id:
+        _max_admin_chat_ids[user_id] = chat_id
+        _save_max_chat_ids(_max_admin_chat_ids)
+        print(f"✅ MAX-администратор {user_id} → chat_id={chat_id} сохранён")
+
+async def _notify_admin(callback, text: str):
     """
-    Формирует полный отчёт для менеджера (с username и ID)
+    Отправляет сообщение администратору на нужной платформе.
+    - Для MAX используется format='html'
+    - Для Telegram используется parse_mode='html'
     """
-    report_lines = [
-        "📝 Новая заявка на подбор автомобиля",
-        "=" * 35,
-        "",
-        "👤 Информация о клиенте:",
-        f"• Имя: {user.full_name}",
-        f"• Username: @{user.username if user.username else 'не указан'}",
-        f"• Telegram ID: {user.id}",
-        "",
-        "🚗 Параметры подбора:",
-    ]
+    # Определяем платформу: MAX (если нет атрибута .bot), иначе Telegram
+    is_max = not hasattr(type(callback), 'bot') or getattr(callback, 'bot', None) is None
 
-    for field_name, value in user_data.items():
-        if value and value != "—":
-            report_lines.append(f"• {field_name}: {value}")
+    if is_max:  # ------------------  MAX  ------------------
+        admins = ADMINS_MAX if ADMINS_MAX else []
+        if not admins:
+            return
 
-    report_lines.extend([
-        "",
-        "=" * 35,
-        "✅ Свяжитесь с клиентом в ближайшее время!"
-    ])
+        # Получаем экземпляр бота MAX из сообщения
+        max_bot = getattr(callback.message, '_bot', None)
+        if not max_bot:
+            # В режиме polling бот может быть ещё недоступен
+            print("⚠️ MAX бот не найден в callback.message._bot")
+            return
 
-    return "\n".join(report_lines)
+        for admin_id in admins:
+            try:
+                chat_id = _max_admin_chat_ids.get(admin_id)
+                if chat_id:
+                    # Отправляем с HTML-форматированием
+                    await max_bot.send_message(
+                        chat_id=chat_id,
+                        text=text,
+                        format="html"
+                    )
+                else:
+                    print(f"⚠️ MAX-администратор {admin_id} ещё не писал боту. "
+                          f"Попросите его отправить /start боту в MAX.")
+            except Exception as e:
+                print(f"Ошибка отправки уведомления MAX-админу {admin_id}: {e}")
 
+    else:  # ------------------  TELEGRAM  ------------------
+        admins = ADMINS if ADMINS else []
+        if not admins:
+            return
 
+        for admin_id in admins:
+            try:
+                # Отправляем с HTML-форматированием
+                await callback.bot.send_message(
+                    admin_id,
+                    text,
+                    parse_mode="html"
+                )
+            except Exception as e:
+                print(f"Ошибка отправки уведомления TG-админу {admin_id}: {e}")
 # ========== КНОПКА "ОТПРАВИТЬ" ==========
 
 @user.callback_query(F.data == "Done")
 async def done(callback: CallbackQuery, state: FSMContext):
-    # Получаем все собранные данные (уже на русском!)
     user_data = await state.get_data()
-
-    # Сохраняем заявку в базу данных
     app_id = save_application(user_data, callback.from_user)
 
-    # Формируем отчёт для пользователя
-    user_report = generate_user_report(user_data, callback.from_user)
+    # Определяем платформу (как в _notify_admin)
+    is_max = not hasattr(type(callback), 'bot') or getattr(callback, 'bot', None) is None
+    platform = 'max' if is_max else 'telegram'
 
-    # Формируем отчёт для менеджера
-    manager_report = generate_manager_report(user_data, callback.from_user)
+    user_report = generate_user_report(user_data, callback.from_user)
+    manager_report = generate_manager_report(user_data, callback.from_user, platform=platform)
     manager_report = f"🆔 ID заявки: {app_id}\n\n{manager_report}"
 
-    # Показываем краткий отчёт пользователю
-    await callback.message.edit_text(
-        user_report,
-        reply_markup=None
-    )
-
-      # замените на реальный ID
-    await callback.bot.send_message(ADMINS[0], manager_report)
-
+    await callback.message.edit_text(user_report, reply_markup=None)
+    await _notify_admin(callback, manager_report)
     await state.clear()
 
 # ========== КНОПКА "ОЧИСТИТЬ" ==========
@@ -440,7 +571,7 @@ async def done(callback: CallbackQuery, state: FSMContext):
 async def clear(callback: CallbackQuery, state: FSMContext):
     await callback.answer("Вы начали сначала")
     await state.clear()
-    if isinstance(callback.message, Message):
+    if callback.message is not None:
         await callback.message.answer("Начинаем заново. Подскажите, что вас интересует сейчас?", reply_markup=kb.menu_start)
 
 
