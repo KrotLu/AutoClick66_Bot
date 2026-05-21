@@ -1,88 +1,42 @@
-"""
-Патч для библиотеки maxbot: токен передаётся через заголовок Authorization,
-а не через query-параметр access_token (устаревший способ, API возвращает 401).
-
-Запускать один раз после pip install:
-    python patch_maxbot.py
-"""
-import sys
-import importlib.util
-
-spec = importlib.util.find_spec("maxbot")
-if spec is None:
-    print("❌ maxbot не установлен. Сначала выполните: pip install -r requirements.txt")
-    sys.exit(1)
-
+import site
 import os
-bot_path = os.path.join(os.path.dirname(spec.origin), "bot.py")
-print(f"Патчим: {bot_path}")
+import re
 
-with open(bot_path, "r", encoding="utf-8") as f:
-    content = f.read()
+def patch_bot(lib_name):
+    for path in site.getsitepackages():
+        bot_file = os.path.join(path, lib_name, 'bot.py')
+        if not os.path.exists(bot_file):
+            continue
+        print(f"Патчим {bot_file}")
+        with open(bot_file, 'r') as f:
+            content = f.read()
+        # Проверяем, нужен ли патч (есть access_token в params)
+        if 'access_token' in content and 'Authorization' not in content:
+            # Убираем access_token из params
+            content = re.sub(r',?\s*"access_token": self\.token,?\s*', '', content)
+            # Добавляем Authorization в headers там, где его нет
+            content = re.sub(
+                r'headers={"Content-Type": "application/json"}',
+                'headers={"Content-Type": "application/json", "Authorization": self.token}',
+                content
+            )
+            content = re.sub(
+                r'headers=\{"Content-Type": "application/json"\}',
+                'headers={"Content-Type": "application/json", "Authorization": self.token}',
+                content
+            )
+            with open(bot_file, 'w') as f:
+                f.write(content)
+            print(f"✅ Патч применён к {lib_name}")
+            return True
+        else:
+            print(f"ℹ️ {lib_name} уже использует Authorization или не требует патча")
+            return False
+    return False
 
-patched = False
-
-# ── Патч 1: update_message ──────────────────────────────────────────────────
-old1 = (
-    '        params = {\n'
-    '        "access_token": self.token,\n'
-    '        "message_id": message_id,\n'
-    '        }'
-)
-new1 = (
-    '        params = {\n'
-    '        "message_id": message_id,\n'
-    '        }'
-)
-
-old1_headers = '        headers={"Content-Type": "application/json"},\n        timeout=httpx.Timeout(30.0)\n        )\n\n\n    async def delete_message'
-new1_headers = '        headers={"Content-Type": "application/json", "Authorization": self.token},\n        timeout=httpx.Timeout(30.0)\n        )\n\n\n    async def delete_message'
-
-if old1 in content:
-    content = content.replace(old1, new1, 1)
-    content = content.replace(old1_headers, new1_headers, 1)
-    print("✅ Патч 1 (update_message): применён")
-    patched = True
-else:
-    print("ℹ️  Патч 1 (update_message): уже применён или не нужен")
-
-# ── Патч 2: delete_message ──────────────────────────────────────────────────
-old2 = (
-    '    async def delete_message(self, message_id: str):\n'
-    '        params = {\n'
-    '            "access_token": self.token,\n'
-    '            "message_id": message_id,\n'
-    '        }\n\n'
-    '        return await self.client.delete(\n'
-    '            f"{self.base_url}/messages",\n'
-    '            params=params,\n'
-    '            headers={"Content-Type": "application/json"},\n'
-    '            timeout=httpx.Timeout(30.0)\n'
-    '        )'
-)
-new2 = (
-    '    async def delete_message(self, message_id: str):\n'
-    '        params = {\n'
-    '            "message_id": message_id,\n'
-    '        }\n\n'
-    '        return await self.client.delete(\n'
-    '            f"{self.base_url}/messages",\n'
-    '            params=params,\n'
-    '            headers={"Content-Type": "application/json", "Authorization": self.token},\n'
-    '            timeout=httpx.Timeout(30.0)\n'
-    '        )'
-)
-
-if old2 in content:
-    content = content.replace(old2, new2, 1)
-    print("✅ Патч 2 (delete_message): применён")
-    patched = True
-else:
-    print("ℹ️  Патч 2 (delete_message): уже применён или не нужен")
-
-if patched:
-    with open(bot_path, "w", encoding="utf-8") as f:
-        f.write(content)
-    print("\n✅ Патч успешно применён.")
-else:
-    print("\nℹ️  Ничего не изменено — патч уже был применён ранее.")
+if __name__ == "__main__":
+    patched = patch_bot('umaxbot') or patch_bot('maxbot')
+    if not patched:
+        print("❌ Не удалось найти ни umaxbot, ни maxbot. Установите зависимости сначала.")
+    else:
+        print("✅ Патч успешно применён.")
