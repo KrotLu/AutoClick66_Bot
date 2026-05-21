@@ -509,10 +509,13 @@ async def _notify_admin(callback, text: str):
             return
 
         # Получаем экземпляр бота MAX из сообщения
+
         max_bot = getattr(callback.message, '_bot', None)
+        if not max_bot and hasattr(callback, 'bot') and callback.bot is not None:
+            max_bot = callback.bot
+            print("🔍 Используем callback.bot как max_bot")
         if not max_bot:
-            # В режиме polling бот может быть ещё недоступен
-            print("⚠️ MAX бот не найден в callback.message._bot")
+            print("⚠️ MAX бот не найден ни в callback.message._bot, ни в callback.bot")
             return
 
         for admin_id in admins:
