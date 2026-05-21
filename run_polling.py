@@ -6,7 +6,7 @@ from aiogram import Bot
 from obabot import create_bot
 from handlers import user
 from database import init_db
-from keep_alive import keep_alive
+#from keep_alive import keep_alive
 
 load_dotenv()
 
