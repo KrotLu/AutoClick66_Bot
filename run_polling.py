@@ -7,7 +7,30 @@ from obabot import create_bot
 from handlers import user
 from database import init_db
 #from keep_alive import keep_alive
+# ========== АВТОПАТЧ ДЛЯ OBABOT (MAX) ==========
+def patch_obabot():
+    for path in site.getsitepackages():
+        max_platform = os.path.join(path, 'obabot', 'platforms', 'max.py')
+        if not os.path.exists(max_platform):
+            continue
+        print(f"🔍 Проверяем {max_platform}...")
+        with open(max_platform, 'r') as f:
+            content = f.read()
+        if 'access_token' in content and 'Authorization' not in content:
+            content = re.sub(r',?\s*"access_token":\s*self\.token,?\s*', '', content)
+            content = re.sub(r'params\s*=\s*\{[^}]*"access_token":\s*self\.token[^}]*\}', 'params={}', content)
+            content = re.sub(r'(headers\s*=\s*\{[^}]*\})', r'\1, "Authorization": self.token', content)
+            with open(max_platform, 'w') as f:
+                f.write(content)
+            print("✅ obabot пропатчен (Authorization header добавлен)")
+            return True
+        else:
+            print("ℹ️ obabot уже в порядке")
+            return True
+    print("❌ obabot/platforms/max.py не найден")
+    return False
 
+patch_obabot()
 load_dotenv()
 
 db_path = Path(__file__).parent / "applications.db"
