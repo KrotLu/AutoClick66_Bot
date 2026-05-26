@@ -61,7 +61,7 @@ async def main():
             _populate_pending_handlers(proxy_router, user)
             ensure_inited()
 
-    await dp.start_polling(bot)
+    await dp.start_polling(bot, polling_timeout=30, relax=2.0)
 
 if __name__ == "__main__":
     #keep_alive()
