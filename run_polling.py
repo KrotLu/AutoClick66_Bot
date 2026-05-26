@@ -1,12 +1,13 @@
 import asyncio
 import os
+import re
+import site
 from pathlib import Path
 from dotenv import load_dotenv
 from aiogram import Bot
 from obabot import create_bot
 from handlers import user
 from database import init_db
-#from keep_alive import keep_alive
 # ========== АВТОПАТЧ ДЛЯ OBABOT (MAX) ==========
 def patch_obabot():
     for path in site.getsitepackages():
