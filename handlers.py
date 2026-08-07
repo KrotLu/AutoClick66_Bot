@@ -313,7 +313,16 @@ async def handle_text(message: Message, state: FSMContext):
                 "Отлично! Данные для заявки сохранены. Отправить заявку?",
                 reply_markup=kb.send_request
             )
-        # остальные состояния (budget, timing, city, tel, dop_or_done) уже обрабатываются отдельными хендлерами
+        # ========= ДОБАВЛЕНА ВЕТКА ДЛЯ ТЕЛЕФОНА =========
+        elif current_state == CarSelection.tel.state:
+            # Выводим меню для выбора (точно так же, как в Telegram)
+            await message.answer(
+                "Основные ответы получены! Хотите отправить заявку на подбор автомобиля сейчас или выбрать дополнительные характеристики?",
+                reply_markup=kb.q7_dop_or_done
+            )
+            # Состояние не меняем, так как следующий шаг задаст кнопка "q7_Дальше"
+        # ==============================================
+        # остальные состояния (budget, timing, city) уже обрабатываются отдельными хендлерами
     else:
         if message.text.lower() == "привет":
             await message.answer(
