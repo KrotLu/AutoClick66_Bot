@@ -51,7 +51,12 @@ async def Car(callback: CallbackQuery, state: FSMContext):
     if callback.message is not None and callback.data and callback.data != "clear":
         await update_user_data(callback, state, CarSelection.purpose)
         await callback.answer()
-        await callback.message.edit_text(
+        # ЗАМЕНА edit_text на delete + answer
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+        await callback.message.answer(
             "Вы хотите выбрать автомобиль по марке или по стране подбора?",
             reply_markup=kb.q0_country_or_marc
         )
@@ -60,7 +65,12 @@ async def Car(callback: CallbackQuery, state: FSMContext):
 @user.callback_query(F.data.startswith("q0_"))
 async def q0_choice(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
-    await callback.message.edit_text("Подбор автомобиля")
+    # ЗАМЕНА edit_text на delete + answer
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await callback.message.answer("Подбор автомобиля")
     if callback.data == "q0_marc":
         await callback.message.answer("Теперь выберите марку автомобиля", reply_markup=kb.q2_marc)
         await state.set_state(CarSelection.marc)
@@ -243,10 +253,12 @@ async def update_user_data(callback: CallbackQuery, state: FSMContext, current_s
     await callback.answer(f"✅ Вы выбрали {value}")
 
     if callback.message is not None:
+        # ЗАМЕНА edit_text на delete + answer
         try:
-            await callback.message.edit_text(f"✅ {field_name}: {value}")
+            await callback.message.delete()
         except Exception:
             pass
+        await callback.message.answer(f"✅ {field_name}: {value}")
 
     return value
 
@@ -469,7 +481,12 @@ async def done(callback: CallbackQuery, state: FSMContext):
     manager_report = generate_manager_report(user_data, callback.from_user, platform=platform)
     manager_report = f"🆔 ID заявки: {app_id}\n\n{manager_report}"
 
-    await callback.message.edit_text(user_report, reply_markup=None)
+    # ЗАМЕНА edit_text на delete + answer
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+    await callback.message.answer(user_report, reply_markup=None)
     await _notify_admin(callback, manager_report)
     await state.clear()
 
